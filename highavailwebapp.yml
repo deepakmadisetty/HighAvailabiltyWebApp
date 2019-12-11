@@ -6,11 +6,6 @@ Parameters:
     EnvironmentName:
         Description: An environment name that will be prefixed to resource names
         Type: String
-    
-    VpcCIDR: 
-        Description: Please enter the IP range (CIDR notation) for this VPC
-        Type: String
-        Default: 10.0.0.0/16
 
 Resources:
 
@@ -41,8 +36,8 @@ Resources:
           !Sub "${EnvironmentName}-VPCID"
       SecurityGroupIngress:
       - IpProtocol: tcp
-        FromPort: 80
-        ToPort: 80
+        FromPort: 8080
+        ToPort: 8080
         CidrIp: 0.0.0.0/0
       - IpProtocol: tcp
         FromPort: 22
@@ -81,12 +76,14 @@ Resources:
   WebServerAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
-      AvailabilityZones: 
-        Fn::GetAZs: ""
+      VPCZoneIdentifier:
+      - Fn::ImportValue: !Sub "${EnvironmentName}-PUB-NETS"
       LaunchConfigurationName:
         Ref: "WebAppLaunchConfig"
-      MinSize: "4"
-      MaxSize: "5"
+      MinSize: "2"
+      MaxSize: "3"
+      TargetGroupARNs:
+        - Ref: "WebAppTargetGroup"
   
   WebAppLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
@@ -119,7 +116,7 @@ Resources:
       Conditions:
       - Field: path-pattern
         Values: [/]
-      ListenerArn:
+      ListenerArn: 
         Ref: Listener
       Priority: 1
 
@@ -136,4 +133,4 @@ Resources:
       UnhealthyThresholdCount: 5
       VpcId:
         Fn::ImportValue:
-          !Sub "${EnvironmentName}-VPCID"
+          Fn::Sub: "${EnvironmentName}-VPCID"
