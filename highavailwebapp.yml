@@ -26,10 +26,6 @@ Resources:
         FromPort: 80
         ToPort: 80
         CidrIp: 0.0.0.0/0
-      - IpProtocol: tcp
-        FromPort: 8080
-        ToPort: 8080
-        CidrIp: 0.0.0.0/0
   
   WebServerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -40,8 +36,8 @@ Resources:
           !Sub "${EnvironmentName}-VPCID"
       SecurityGroupIngress:
       - IpProtocol: tcp
-        FromPort: 8080
-        ToPort: 8080
+        FromPort: 80
+        ToPort: 80
         CidrIp: 0.0.0.0/0
       - IpProtocol: tcp
         FromPort: 22
@@ -57,11 +53,10 @@ Resources:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
       ImageId: ami-06d51e91cea0dac8d
-      KeyName: webappkey
       SecurityGroups:
       - Ref: WebServerSecurityGroup
-      
-      InstanceType: t2.micro
+      IamInstanceProfile: arn:aws:iam::090508598589:instance-profile/WebAppDeploy-S3Access-Instance-Profile
+      InstanceType: t3.medium
       BlockDeviceMappings: 
       - DeviceName: "/dev/sdk"
         Ebs: 
@@ -81,11 +76,11 @@ Resources:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
       VPCZoneIdentifier:
-      - Fn::ImportValue: !Sub "${EnvironmentName}-PUB-NETS"
+      - Fn::ImportValue: !Sub "${EnvironmentName}-PRIV-NETS"
       LaunchConfigurationName:
         Ref: "WebAppLaunchConfig"
-      MinSize: "2"
-      MaxSize: "3"
+      MinSize: "4"
+      MaxSize: "6"
       TargetGroupARNs:
         - Ref: "WebAppTargetGroup"
   
@@ -132,9 +127,13 @@ Resources:
       HealthCheckProtocol: HTTP
       HealthCheckTimeoutSeconds: 8
       HealthyThresholdCount: 2
-      Port: 8080
+      Port: 80
       Protocol: HTTP
       UnhealthyThresholdCount: 5
       VpcId:
         Fn::ImportValue:
           Fn::Sub: "${EnvironmentName}-VPCID"
+Outputs:
+  LoadBalancerURL: 
+    Description: The DNSName of the WebAppLoadBalancer
+    Value: !Join ["", ["http://", !GetAtt WebAppLoadBalancer.DNSName]]
